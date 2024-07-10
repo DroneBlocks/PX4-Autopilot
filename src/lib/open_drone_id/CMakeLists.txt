@@ -37,3 +37,6 @@ px4_add_library(open_drone_id
 )
 
 target_compile_options(open_drone_id PRIVATE -Wno-cast-align -Wno-address-of-packed-member)
+
+# For mavlink include
+target_include_directories(open_drone_id PRIVATE "${CMAKE_BINARY_DIR}")
