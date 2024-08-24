@@ -108,7 +108,7 @@ if [ -n "$VIRTUAL_ENV" ]; then
 	python -m pip install -r ${DIR}/requirements.txt
 else
 	# older versions of Ubuntu require --user option
-	python3 -m pip install --user -r ${DIR}/requirements.txt
+	python3 -m pip install -r ${DIR}/requirements.txt
 fi
 
 # NuttX toolchain (arm-none-eabi-gcc)
