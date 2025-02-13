@@ -155,17 +155,17 @@ int GZBridge::init()
 			}
 
 			std::string scene_info_service = "/world/" + _world_name + "/scene/info";
-			bool scene_created = false;
+			// bool scene_created = false;
 
-			while (scene_created == false) {
-				if (!callSceneInfoMsgService(scene_info_service)) {
-					PX4_WARN("Service call timed out as Gazebo has not been detected.");
-					system_usleep(2000000);
+			// while (scene_created == false) {
+			// 	if (!callSceneInfoMsgService(scene_info_service)) {
+			// 		PX4_WARN("Service call timed out as Gazebo has not been detected.");
+			// 		system_usleep(2000000);
 
-				} else {
-					scene_created = true;
-				}
-			}
+			// 	} else {
+			// 		scene_created = true;
+			// 	}
+			// }
 
 			gz::msgs::StringMsg follow_msg{};
 			follow_msg.set_data(_model_name);
