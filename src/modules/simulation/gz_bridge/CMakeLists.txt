@@ -91,6 +91,7 @@ if(gz-transport_FOUND)
 		aruco
 		rover
 		walls
+		apriltag
 	)
 
 	# find corresponding airframes
