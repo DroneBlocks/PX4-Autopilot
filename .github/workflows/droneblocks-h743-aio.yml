@@ -65,17 +65,35 @@ jobs:
           path: out/
           if-no-files-found: error
 
-      # --- Publish to R2 for the web configurator (enable once R2 secrets exist) ---
-      # Set repo secrets R2_ACCESS_KEY_ID / R2_SECRET_ACCESS_KEY / R2_ENDPOINT and a
-      # `droneblocks-firmware` bucket (CORS-allow px4-configurator.web.app + localhost),
-      # then uncomment. The web configurator fetches manifest.json + the .px4/.bin by URL.
-      #
-      # - name: Publish to Cloudflare R2
-      #   env:
-      #     AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
-      #     AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
-      #     R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
-      #   run: |
-      #     pip install awscli
-      #     aws s3 cp out/ s3://droneblocks-firmware/droneblocks_h743-aio/ \
-      #       --recursive --endpoint-url "$R2_ENDPOINT"
+      # Publish to Cloudflare R2 so the web configurator can fetch by URL.
+      # Gated on a repo variable so the workflow stays green until R2 is wired:
+      #   Repo Settings → Secrets and variables → Actions
+      #     Variables: PUBLISH_TO_R2=true, R2_BUCKET=droneblocks-firmware, R2_PUBLIC_BASE_URL=https://<r2-or-custom-domain>
+      #     Secrets:   R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_ENDPOINT (https://<account>.r2.cloudflarestorage.com)
+      #   Bucket CORS must allow https://px4-configurator.web.app and http://localhost:3000.
+      - name: Publish to Cloudflare R2
+        if: ${{ vars.PUBLISH_TO_R2 == 'true' }}
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
+          R2_BUCKET: ${{ vars.R2_BUCKET }}
+          R2_PUBLIC_BASE_URL: ${{ vars.R2_PUBLIC_BASE_URL }}
+        run: |
+          set -e
+          pip install --quiet awscli
+          export PREFIX="$R2_PUBLIC_BASE_URL/droneblocks_h743-aio/latest"
+          # Rewrite manifest with absolute firmware/bootloader URLs so the web tool
+          # can fetch from manifest.json without knowing the base path.
+          python3 -c '
+          import json, os
+          m = json.load(open("out/manifest.json"))
+          base = os.environ["PREFIX"]
+          m["firmware_url"]   = base + "/" + m["firmware"]
+          m["bootloader_url"] = base + "/" + m["bootloader"]
+          json.dump(m, open("out/manifest.json", "w"), indent=2)
+          '
+          aws s3 cp out/ "s3://$R2_BUCKET/droneblocks_h743-aio/latest/" \
+              --recursive --endpoint-url "$R2_ENDPOINT" \
+              --cache-control "public, max-age=60" --acl public-read
+          echo "Published manifest + artifacts → $PREFIX"
