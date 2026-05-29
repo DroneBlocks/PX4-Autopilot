@@ -37,8 +37,7 @@ px4_add_romfs_files(
 	# [18000, 18999] High-altitude balloons
 	18001_TF-B1
 
-	# [22000, 22999] Reserve for custom models · DroneBlocks DEXI
-	22001_dexi3_indoor
+	# [22000, 22999] Reserve for custom models
 )
 
 if(CONFIG_MODULES_SIMULATION_PWM_OUT_SIM)
@@ -77,6 +76,7 @@ if(CONFIG_MODULES_MC_RATE_CONTROL)
 		4073_ifo-s
 		4500_clover4
 		4601_droneblocks_dexi_5
+		4701_dexi3_indoor
 		4901_crazyflie21
 
 		# [5000, 5999] Quadrotor +

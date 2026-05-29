@@ -12,7 +12,7 @@ on:
       - 'droneblocks/**'
     paths:
       - 'boards/droneblocks/**'
-      - 'ROMFS/px4fmu_common/init.d/airframes/22001_dexi3_indoor'
+      - 'ROMFS/px4fmu_common/init.d/airframes/4701_dexi3_indoor'
       - '.github/workflows/droneblocks-h743-aio.yml'
 
 jobs:
