@@ -1,0 +1,111 @@
+name: DroneBlocks H743-AIO firmware
+
+# Cloud-builds the DroneBlocks H743-AIO PX4 firmware + matching bootloader and
+# publishes them as downloadable artifacts (+ a manifest the web configurator can
+# consume). Mirrors the local Docker build, on a GitHub-hosted x86_64 runner so the
+# px4-dev-nuttx container runs natively (no Rosetta).
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - 'droneblocks/**'
+    paths:
+      - 'boards/droneblocks/**'
+      - 'ROMFS/px4fmu_common/init.d/airframes/4701_dexi3_indoor'
+      - '.github/workflows/droneblocks-h743-aio.yml'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container: px4io/px4-dev-nuttx-jammy:latest
+    steps:
+      - name: Checkout (with submodules)
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0   # PX4 version generation needs tags + history
+
+      - name: Trust workspace (build runs as root in the container)
+        run: git config --global --add safe.directory '*'
+
+      - name: Build firmware
+        run: make droneblocks_h743-aio_default
+
+      - name: Build bootloader
+        run: make droneblocks_h743-aio_bootloader
+
+      - name: Stage artifacts + manifest
+        run: |
+          set -e
+          mkdir -p out
+          FW=build/droneblocks_h743-aio_default/droneblocks_h743-aio_default.px4
+          BL=build/droneblocks_h743-aio_bootloader/droneblocks_h743-aio_bootloader.bin
+          cp "$FW" "$BL" out/
+          VER=$(git describe --tags --always --dirty 2>/dev/null || echo unknown)
+          SHA=$(git rev-parse --short HEAD)
+          BID=$(python3 -c "import json;print(json.load(open('boards/droneblocks/h743-aio/firmware.prototype'))['board_id'])")
+          cat > out/manifest.json <<EOF
+          {
+            "board": "droneblocks_h743-aio",
+            "board_id": ${BID},
+            "version": "${VER}",
+            "git_sha": "${SHA}",
+            "built_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+            "firmware": "droneblocks_h743-aio_default.px4",
+            "bootloader": "droneblocks_h743-aio_bootloader.bin"
+          }
+          EOF
+          cat out/manifest.json
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: droneblocks_h743-aio
+          path: out/
+          if-no-files-found: error
+
+      # Publish to Cloudflare R2 so the web configurator can fetch by URL.
+      # Matches the dexi-os pattern: rclone with an `r2:` remote, S3 provider=Cloudflare.
+      # dexi-os configures rclone on its self-hosted runner; we're on GitHub-hosted so we
+      # supply the remote via RCLONE_CONFIG_R2_* env vars and install rclone per-run.
+      #
+      # Gated on PUBLISH_TO_R2 so the workflow stays green until R2 is wired:
+      #   Repo Settings → Secrets and variables → Actions
+      #     Variables: PUBLISH_TO_R2=true, R2_BUCKET=dexi-firmware, R2_PUBLIC_BASE_URL=https://pub-<hash>.r2.dev
+      #     Secrets:   R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_ENDPOINT (https://<account>.r2.cloudflarestorage.com)
+      #   Bucket: enable r2.dev public access + CORS for https://px4-configurator.web.app and http://localhost:3000.
+      - name: Publish to Cloudflare R2
+        if: ${{ vars.PUBLISH_TO_R2 == 'true' }}
+        env:
+          RCLONE_CONFIG_R2_TYPE: s3
+          RCLONE_CONFIG_R2_PROVIDER: Cloudflare
+          RCLONE_CONFIG_R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          RCLONE_CONFIG_R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          RCLONE_CONFIG_R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
+          R2_BUCKET: ${{ vars.R2_BUCKET }}
+          R2_PUBLIC_BASE_URL: ${{ vars.R2_PUBLIC_BASE_URL }}
+        run: |
+          set -e
+          apt-get update -qq && apt-get install -qq -y rclone
+          BOARD=droneblocks_h743-aio
+          VERSION=$(python3 -c "import json; print(json.load(open('out/manifest.json'))['version'])")
+          export PREFIX="$R2_PUBLIC_BASE_URL/$BOARD/latest"
+          # Rewrite manifest with absolute URLs so the web tool can fetch directly.
+          python3 -c '
+          import json, os
+          m = json.load(open("out/manifest.json"))
+          base = os.environ["PREFIX"]
+          m["firmware_url"]   = base + "/" + m["firmware"]
+          m["bootloader_url"] = base + "/" + m["bootloader"]
+          json.dump(m, open("out/manifest.json", "w"), indent=2)
+          '
+          # Two destinations: /latest/ (auto-updated) and /v<version>/ (immutable archive).
+          for FILE in out/*; do
+            NAME=$(basename "$FILE")
+            rclone copyto "$FILE" "r2:$R2_BUCKET/$BOARD/latest/$NAME" \
+              --s3-chunk-size 64M --s3-upload-concurrency 8
+            rclone copyto "$FILE" "r2:$R2_BUCKET/$BOARD/v$VERSION/$NAME" \
+              --s3-chunk-size 64M --s3-upload-concurrency 8
+          done
+          echo "::notice title=Firmware published::$PREFIX/manifest.json"
