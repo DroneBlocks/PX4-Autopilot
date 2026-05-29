@@ -66,25 +66,32 @@ jobs:
           if-no-files-found: error
 
       # Publish to Cloudflare R2 so the web configurator can fetch by URL.
-      # Gated on a repo variable so the workflow stays green until R2 is wired:
+      # Matches the dexi-os pattern: rclone with an `r2:` remote, S3 provider=Cloudflare.
+      # dexi-os configures rclone on its self-hosted runner; we're on GitHub-hosted so we
+      # supply the remote via RCLONE_CONFIG_R2_* env vars and install rclone per-run.
+      #
+      # Gated on PUBLISH_TO_R2 so the workflow stays green until R2 is wired:
       #   Repo Settings → Secrets and variables → Actions
-      #     Variables: PUBLISH_TO_R2=true, R2_BUCKET=droneblocks-firmware, R2_PUBLIC_BASE_URL=https://<r2-or-custom-domain>
+      #     Variables: PUBLISH_TO_R2=true, R2_BUCKET=dexi-firmware, R2_PUBLIC_BASE_URL=https://pub-<hash>.r2.dev
       #     Secrets:   R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_ENDPOINT (https://<account>.r2.cloudflarestorage.com)
-      #   Bucket CORS must allow https://px4-configurator.web.app and http://localhost:3000.
+      #   Bucket: enable r2.dev public access + CORS for https://px4-configurator.web.app and http://localhost:3000.
       - name: Publish to Cloudflare R2
         if: ${{ vars.PUBLISH_TO_R2 == 'true' }}
         env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
-          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
+          RCLONE_CONFIG_R2_TYPE: s3
+          RCLONE_CONFIG_R2_PROVIDER: Cloudflare
+          RCLONE_CONFIG_R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          RCLONE_CONFIG_R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          RCLONE_CONFIG_R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
           R2_BUCKET: ${{ vars.R2_BUCKET }}
           R2_PUBLIC_BASE_URL: ${{ vars.R2_PUBLIC_BASE_URL }}
         run: |
           set -e
-          pip install --quiet awscli
-          export PREFIX="$R2_PUBLIC_BASE_URL/droneblocks_h743-aio/latest"
-          # Rewrite manifest with absolute firmware/bootloader URLs so the web tool
-          # can fetch from manifest.json without knowing the base path.
+          apt-get update -qq && apt-get install -qq -y rclone
+          BOARD=droneblocks_h743-aio
+          VERSION=$(python3 -c "import json; print(json.load(open('out/manifest.json'))['version'])")
+          export PREFIX="$R2_PUBLIC_BASE_URL/$BOARD/latest"
+          # Rewrite manifest with absolute URLs so the web tool can fetch directly.
           python3 -c '
           import json, os
           m = json.load(open("out/manifest.json"))
@@ -93,7 +100,12 @@ jobs:
           m["bootloader_url"] = base + "/" + m["bootloader"]
           json.dump(m, open("out/manifest.json", "w"), indent=2)
           '
-          aws s3 cp out/ "s3://$R2_BUCKET/droneblocks_h743-aio/latest/" \
-              --recursive --endpoint-url "$R2_ENDPOINT" \
-              --cache-control "public, max-age=60" --acl public-read
-          echo "Published manifest + artifacts → $PREFIX"
+          # Two destinations: /latest/ (auto-updated) and /v<version>/ (immutable archive).
+          for FILE in out/*; do
+            NAME=$(basename "$FILE")
+            rclone copyto "$FILE" "r2:$R2_BUCKET/$BOARD/latest/$NAME" \
+              --s3-chunk-size 64M --s3-upload-concurrency 8
+            rclone copyto "$FILE" "r2:$R2_BUCKET/$BOARD/v$VERSION/$NAME" \
+              --s3-chunk-size 64M --s3-upload-concurrency 8
+          done
+          echo "::notice title=Firmware published::$PREFIX/manifest.json"
