@@ -1,0 +1,81 @@
+name: DroneBlocks H743-AIO firmware
+
+# Cloud-builds the DroneBlocks H743-AIO PX4 firmware + matching bootloader and
+# publishes them as downloadable artifacts (+ a manifest the web configurator can
+# consume). Mirrors the local Docker build, on a GitHub-hosted x86_64 runner so the
+# px4-dev-nuttx container runs natively (no Rosetta).
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - 'droneblocks/**'
+    paths:
+      - 'boards/droneblocks/**'
+      - 'ROMFS/px4fmu_common/init.d/airframes/22001_dexi3_indoor'
+      - '.github/workflows/droneblocks-h743-aio.yml'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container: px4io/px4-dev-nuttx-jammy:latest
+    steps:
+      - name: Checkout (with submodules)
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0   # PX4 version generation needs tags + history
+
+      - name: Trust workspace (build runs as root in the container)
+        run: git config --global --add safe.directory '*'
+
+      - name: Build firmware
+        run: make droneblocks_h743-aio_default
+
+      - name: Build bootloader
+        run: make droneblocks_h743-aio_bootloader
+
+      - name: Stage artifacts + manifest
+        run: |
+          set -e
+          mkdir -p out
+          FW=build/droneblocks_h743-aio_default/droneblocks_h743-aio_default.px4
+          BL=build/droneblocks_h743-aio_bootloader/droneblocks_h743-aio_bootloader.bin
+          cp "$FW" "$BL" out/
+          VER=$(git describe --tags --always --dirty 2>/dev/null || echo unknown)
+          SHA=$(git rev-parse --short HEAD)
+          BID=$(python3 -c "import json;print(json.load(open('boards/droneblocks/h743-aio/firmware.prototype'))['board_id'])")
+          cat > out/manifest.json <<EOF
+          {
+            "board": "droneblocks_h743-aio",
+            "board_id": ${BID},
+            "version": "${VER}",
+            "git_sha": "${SHA}",
+            "built_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+            "firmware": "droneblocks_h743-aio_default.px4",
+            "bootloader": "droneblocks_h743-aio_bootloader.bin"
+          }
+          EOF
+          cat out/manifest.json
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: droneblocks_h743-aio
+          path: out/
+          if-no-files-found: error
+
+      # --- Publish to R2 for the web configurator (enable once R2 secrets exist) ---
+      # Set repo secrets R2_ACCESS_KEY_ID / R2_SECRET_ACCESS_KEY / R2_ENDPOINT and a
+      # `droneblocks-firmware` bucket (CORS-allow px4-configurator.web.app + localhost),
+      # then uncomment. The web configurator fetches manifest.json + the .px4/.bin by URL.
+      #
+      # - name: Publish to Cloudflare R2
+      #   env:
+      #     AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+      #     AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+      #     R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
+      #   run: |
+      #     pip install awscli
+      #     aws s3 cp out/ s3://droneblocks-firmware/droneblocks_h743-aio/ \
+      #       --recursive --endpoint-url "$R2_ENDPOINT"
