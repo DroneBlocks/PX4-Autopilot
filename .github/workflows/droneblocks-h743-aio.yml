@@ -83,11 +83,18 @@ jobs:
           RCLONE_CONFIG_R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           RCLONE_CONFIG_R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
           RCLONE_CONFIG_R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
+          RCLONE_CONFIG_R2_REGION: auto
+          # Scoped R2 tokens can't HeadBucket — skip the precheck or rclone 403s on it.
+          RCLONE_CONFIG_R2_NO_CHECK_BUCKET: 'true'
           R2_BUCKET: ${{ vars.R2_BUCKET }}
           R2_PUBLIC_BASE_URL: ${{ vars.R2_PUBLIC_BASE_URL }}
         run: |
           set -e
-          apt-get update -qq && apt-get install -qq -y rclone
+          # Ubuntu Jammy's apt rclone is 1.53 (pre-R2). Install current rclone for
+          # proper Cloudflare provider + no_check_bucket support.
+          apt-get update -qq && apt-get install -qq -y curl unzip
+          curl -fsSL https://rclone.org/install.sh | bash
+          rclone --version | head -1
           BOARD=droneblocks_h743-aio
           VERSION=$(python3 -c "import json; print(json.load(open('out/manifest.json'))['version'])")
           export PREFIX="$R2_PUBLIC_BASE_URL/$BOARD/latest"
