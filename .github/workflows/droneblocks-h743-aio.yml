@@ -27,15 +27,22 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          # Our custom H743-AIO board on the v1.17.0-based branch (our 7 commits on top).
           - target: droneblocks_h743-aio
             board_dir: droneblocks/h743-aio
+            ref: droneblocks/h743-aio-board
+          # ARK Pi 6X for DEXI-5: stay on the v1.16.x line so DEXI-OS PX4 msgs 1.16
+          # stays in sync. v1.16.2 already includes the optical-flow takeoff fix
+          # (PR #26961, merged into release/1.16 on 2026-04-02).
           - target: ark_pi6x
             board_dir: ark/pi6x
+            ref: v1.16.2
 
     steps:
       - name: Checkout (with submodules)
         uses: actions/checkout@v4
         with:
+          ref: ${{ matrix.ref }}
           submodules: recursive
           fetch-depth: 0   # PX4 version generation needs tags + history
 
