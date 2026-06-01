@@ -1,9 +1,11 @@
-name: DroneBlocks H743-AIO firmware
+name: DroneBlocks PX4 firmware
 
-# Cloud-builds the DroneBlocks H743-AIO PX4 firmware + matching bootloader and
-# publishes them as downloadable artifacts (+ a manifest the web configurator can
-# consume). Mirrors the local Docker build, on a GitHub-hosted x86_64 runner so the
-# px4-dev-nuttx container runs natively (no Rosetta).
+# Cloud-builds PX4 firmware + matching bootloaders for the boards DroneBlocks ships,
+# publishes them as downloadable artifacts and (optionally) to Cloudflare R2 so the
+# px4-web-configurator can fetch by URL.
+#
+# Add a board by appending an entry to the matrix below — each entry produces its
+# own R2 manifest at <R2_PUBLIC_BASE_URL>/<target>/latest/manifest.json.
 
 on:
   workflow_dispatch:
@@ -12,13 +14,24 @@ on:
       - 'droneblocks/**'
     paths:
       - 'boards/droneblocks/**'
+      - 'boards/ark/pi6x/**'
       - 'ROMFS/px4fmu_common/init.d/airframes/4701_dexi3_indoor'
+      - 'ROMFS/px4fmu_common/init.d/airframes/4601_droneblocks_dexi_5'
       - '.github/workflows/droneblocks-h743-aio.yml'
 
 jobs:
   build:
     runs-on: ubuntu-latest
     container: px4io/px4-dev-nuttx-jammy:latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: droneblocks_h743-aio
+            board_dir: droneblocks/h743-aio
+          - target: ark_pi6x
+            board_dir: ark/pi6x
+
     steps:
       - name: Checkout (with submodules)
         uses: actions/checkout@v4
@@ -30,30 +43,30 @@ jobs:
         run: git config --global --add safe.directory '*'
 
       - name: Build firmware
-        run: make droneblocks_h743-aio_default
+        run: make ${{ matrix.target }}_default
 
       - name: Build bootloader
-        run: make droneblocks_h743-aio_bootloader
+        run: make ${{ matrix.target }}_bootloader
 
       - name: Stage artifacts + manifest
         run: |
           set -e
           mkdir -p out
-          FW=build/droneblocks_h743-aio_default/droneblocks_h743-aio_default.px4
-          BL=build/droneblocks_h743-aio_bootloader/droneblocks_h743-aio_bootloader.bin
+          FW=build/${{ matrix.target }}_default/${{ matrix.target }}_default.px4
+          BL=build/${{ matrix.target }}_bootloader/${{ matrix.target }}_bootloader.bin
           cp "$FW" "$BL" out/
           VER=$(git describe --tags --always --dirty 2>/dev/null || echo unknown)
           SHA=$(git rev-parse --short HEAD)
-          BID=$(python3 -c "import json;print(json.load(open('boards/droneblocks/h743-aio/firmware.prototype'))['board_id'])")
+          BID=$(python3 -c "import json;print(json.load(open('boards/${{ matrix.board_dir }}/firmware.prototype'))['board_id'])")
           cat > out/manifest.json <<EOF
           {
-            "board": "droneblocks_h743-aio",
+            "board": "${{ matrix.target }}",
             "board_id": ${BID},
             "version": "${VER}",
             "git_sha": "${SHA}",
             "built_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
-            "firmware": "droneblocks_h743-aio_default.px4",
-            "bootloader": "droneblocks_h743-aio_bootloader.bin"
+            "firmware": "${{ matrix.target }}_default.px4",
+            "bootloader": "${{ matrix.target }}_bootloader.bin"
           }
           EOF
           cat out/manifest.json
@@ -61,16 +74,15 @@ jobs:
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: droneblocks_h743-aio
+          name: ${{ matrix.target }}
           path: out/
           if-no-files-found: error
 
       # Publish to Cloudflare R2 so the web configurator can fetch by URL.
-      # Matches the dexi-os pattern: rclone with an `r2:` remote, S3 provider=Cloudflare.
-      # dexi-os configures rclone on its self-hosted runner; we're on GitHub-hosted so we
-      # supply the remote via RCLONE_CONFIG_R2_* env vars and install rclone per-run.
+      # Matches the dexi-os pattern (rclone with an `r2:` remote, S3 provider=Cloudflare).
+      # Each matrix target publishes to its own path: <bucket>/<target>/latest/...
       #
-      # Gated on PUBLISH_TO_R2 so the workflow stays green until R2 is wired:
+      # Gated on PUBLISH_TO_R2 so the workflow stays green if R2 isn't wired:
       #   Repo Settings → Secrets and variables → Actions
       #     Variables: PUBLISH_TO_R2=true, R2_BUCKET=dexi-firmware, R2_PUBLIC_BASE_URL=https://pub-<hash>.r2.dev
       #     Secrets:   R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_ENDPOINT (https://<account>.r2.cloudflarestorage.com)
@@ -84,20 +96,16 @@ jobs:
           RCLONE_CONFIG_R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
           RCLONE_CONFIG_R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
           RCLONE_CONFIG_R2_REGION: auto
-          # Scoped R2 tokens can't HeadBucket — skip the precheck or rclone 403s on it.
           RCLONE_CONFIG_R2_NO_CHECK_BUCKET: 'true'
           R2_BUCKET: ${{ vars.R2_BUCKET }}
           R2_PUBLIC_BASE_URL: ${{ vars.R2_PUBLIC_BASE_URL }}
         run: |
           set -e
-          # Ubuntu Jammy's apt rclone is 1.53 (pre-R2). Install current rclone for
-          # proper Cloudflare provider + no_check_bucket support.
           apt-get update -qq && apt-get install -qq -y curl unzip
           curl -fsSL https://rclone.org/install.sh | bash
           rclone --version | head -1
-          BOARD=droneblocks_h743-aio
           VERSION=$(python3 -c "import json; print(json.load(open('out/manifest.json'))['version'])")
-          export PREFIX="$R2_PUBLIC_BASE_URL/$BOARD/latest"
+          export PREFIX="$R2_PUBLIC_BASE_URL/${{ matrix.target }}/latest"
           # Rewrite manifest with absolute URLs so the web tool can fetch directly.
           python3 -c '
           import json, os
@@ -107,12 +115,11 @@ jobs:
           m["bootloader_url"] = base + "/" + m["bootloader"]
           json.dump(m, open("out/manifest.json", "w"), indent=2)
           '
-          # Two destinations: /latest/ (auto-updated) and /v<version>/ (immutable archive).
           for FILE in out/*; do
             NAME=$(basename "$FILE")
-            rclone copyto "$FILE" "r2:$R2_BUCKET/$BOARD/latest/$NAME" \
+            rclone copyto "$FILE" "r2:$R2_BUCKET/${{ matrix.target }}/latest/$NAME" \
               --s3-chunk-size 64M --s3-upload-concurrency 8
-            rclone copyto "$FILE" "r2:$R2_BUCKET/$BOARD/v$VERSION/$NAME" \
+            rclone copyto "$FILE" "r2:$R2_BUCKET/${{ matrix.target }}/v$VERSION/$NAME" \
               --s3-chunk-size 64M --s3-upload-concurrency 8
           done
-          echo "::notice title=Firmware published::$PREFIX/manifest.json"
+          echo "::notice title=Firmware published (${{ matrix.target }})::$PREFIX/manifest.json"
