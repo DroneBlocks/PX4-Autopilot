@@ -89,3 +89,9 @@ param set-default EKF2_OF_QMIN 50    # lower flow-quality gate for indoor
 param set-default EKF2_GPS_CTRL 0    # no GPS indoors
 param set-default COM_ARM_WO_GPS 1   # allow arming without GPS
 param set-default SENS_FLOW_ROT 0    # UP-T201 mounting orientation
+
+# RC receiver — CRSF on the dedicated RC pad (UART7 → CONFIG_BOARD_SERIAL_RC).
+# The built-in rc_input driver auto-detects CRSF on that port; the standalone
+# CRSF driver MUST stay disabled or it races rc_input on input_rc publication
+# and channels read as all-zero / rssi=255. Caught 2026-06-04 on the dev kit.
+param set-default RC_CRSF_PRT_CFG 0
