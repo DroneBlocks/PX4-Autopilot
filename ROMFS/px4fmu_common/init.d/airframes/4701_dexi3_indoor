@@ -18,7 +18,12 @@
 # Comms verified on the DroneBlocks H743-AIO (board 1240) against DEXI-OS.
 
 # --- QAV250-class frame geometry + tune (DEXI-3 base) ---
-param set-default BAT1_N_CELLS 4   # TODO confirm DEXI-3 pack (QAV250 default = 4S)
+# DEXI-3 ships with a 3S Li-ion pack (confirmed 2026-06-04).
+# V_EMPTY 3.0 V/cell is the Li-ion safe-discharge floor; LiPo default of 3.2 is
+# overly conservative for Li-ion chemistry and reports "empty" with usable
+# capacity remaining. V_CHARGED stays at 4.2 V/cell (default; same as LiPo).
+param set-default BAT1_N_CELLS 3
+param set-default BAT1_V_EMPTY 3.0
 
 param set-default IMU_GYRO_CUTOFF 120
 param set-default IMU_DGYRO_CUTOFF 45
