@@ -71,6 +71,7 @@ if(CONFIG_MODULES_MC_RATE_CONTROL)
 		4073_ifo-s
 		4500_clover4
 		4601_droneblocks_dexi_5
+		4701_dexi3_indoor
 		4901_crazyflie21
 
 		# [5000, 5999] Quadrotor +

@@ -1,0 +1,29 @@
+#!/bin/sh
+#
+# board specific defaults
+#------------------------------------------------------------------------------
+param set-default BAT1_A_PER_V 14.14
+param set-default BAT1_N_CELLS 4
+param set-default BAT1_V_CHARGED 4.2
+# Voltage divider — measured ratio for the H743-AIO's onboard Vbat sense.
+# Upstream MicoAir ships 21.12 (which is ~2× the actual hardware) and
+# board_config.h comments the correct value as "11.0f, measured with the
+# provided PM board". Verified 2026-06-04 against a multimeter on the
+# DroneBlocks dev kit (11.9 V actual ↔ FC reported 11.46 V with V_DIV=11.0).
+param set-default BAT1_V_DIV 11.0
+param set-default BAT1_V_EMPTY 3.2
+
+param set-default SYS_HAS_MAG 0
+param set-default PWM_MAIN_TIM0 -4
+param set-default RC_INPUT_PROTO -1
+
+param set-default IMU_GYRO_CUTOFF 100
+param set-default SYS_AUTOSTART 4001
+param set-default MC_PITCHRATE_K 0.4
+param set-default MC_ROLLRATE_K 0.35
+param set-default MC_YAWRATE_K 1.2
+param set-default MC_YAWRATE_MAX 360
+param set-default MAV_TYPE 2
+param set-default CA_AIRFRAME 0
+param set-default CA_ROTOR_COUNT 4
+param set-default CBRK_SUPPLY_CHK 894281

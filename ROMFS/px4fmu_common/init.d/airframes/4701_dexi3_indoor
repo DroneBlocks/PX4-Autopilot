@@ -1,0 +1,116 @@
+#!/bin/sh
+#
+# @name DroneBlocks DEXI-3 Indoor
+#
+# @type Quadrotor x
+# @class Copter
+#
+# @maintainer DroneBlocks
+#
+# @board px4_fmu-v2 exclude
+# @board bitcraze_crazyflie exclude
+#
+
+. ${R}etc/init.d/rc.mc_defaults
+
+# DEXI-3 (Holybro QAV250-class frame), configured for GPS-denied INDOOR flight:
+# optical flow + laser range (UP-T201), companion mavlink-router, ROS 2 (uXRCE-DDS).
+# Comms verified on the DroneBlocks H743-AIO (board 1240) against DEXI-OS.
+
+# --- QAV250-class frame geometry + tune (DEXI-3 base) ---
+# DEXI-3 ships with a 3S Li-ion pack (confirmed 2026-06-04).
+# V_EMPTY 3.0 V/cell is the Li-ion safe-discharge floor; LiPo default of 3.2 is
+# overly conservative for Li-ion chemistry and reports "empty" with usable
+# capacity remaining. V_CHARGED stays at 4.2 V/cell (default; same as LiPo).
+param set-default BAT1_N_CELLS 3
+param set-default BAT1_V_EMPTY 3.0
+
+param set-default IMU_GYRO_CUTOFF 120
+param set-default IMU_DGYRO_CUTOFF 45
+
+# Board orientation: FC is mounted Yaw 45 in the DEXI-3 frame. The stock airframe
+# omitted this, forcing a hand-set after every flash (a wrong value cross-couples
+# roll/pitch -> oscillation). Set it here so a fresh flash is correct out of the box.
+param set-default SENS_BOARD_ROT 1
+
+# Flight tune — VALIDATED on two DEXI-3 units (2026-06-17), replacing the inherited
+# QAV250 gains that flew with arm-jitter (airmode) and a slow wallow (under-gained,
+# ~3x rate-tracking error in logs). This is PX4's stock multicopter tune scaled to
+# 70% via the rate-K master gain.
+# NOTE: effective rate gain = K * P (roll = 0.7 * 0.15 = 0.105). The K lines ARE
+# part of the tune — dropping them transfers the wrong effective gain.
+param set-default MC_AIRMODE 0
+param set-default MC_ROLLRATE_K 0.7
+param set-default MC_PITCHRATE_K 0.7
+param set-default MC_YAWRATE_K 1.0
+param set-default MC_ROLLRATE_P 0.15
+param set-default MC_PITCHRATE_P 0.15
+param set-default MC_ROLLRATE_I 0.2
+param set-default MC_PITCHRATE_I 0.2
+param set-default MC_ROLLRATE_D 0.003
+param set-default MC_PITCHRATE_D 0.003
+param set-default MC_ROLLRATE_MAX 220
+param set-default MC_PITCHRATE_MAX 220
+param set-default MC_YAWRATE_P 0.2
+param set-default MC_YAWRATE_I 0.1
+param set-default MC_YAWRATE_MAX 200
+param set-default MC_ROLL_P 6.5
+param set-default MC_PITCH_P 6.5
+param set-default MC_YAW_P 2.8
+
+param set-default MPC_MANTHR_MIN 0
+param set-default MPC_MAN_TILT_MAX 60
+param set-default MPC_THR_CURVE 1
+param set-default MPC_THR_HOVER 0.25
+param set-default MPC_THR_MIN 0.05
+param set-default MPC_Z_VEL_I_ACC 1.7
+
+param set-default THR_MDL_FAC 0.3
+
+# Square quadrotor X, PX4 numbering
+param set-default CA_ROTOR_COUNT 4
+param set-default CA_ROTOR0_PX 1
+param set-default CA_ROTOR0_PY 1
+param set-default CA_ROTOR1_PX -1
+param set-default CA_ROTOR1_PY -1
+param set-default CA_ROTOR2_PX 1
+param set-default CA_ROTOR2_PY -1
+param set-default CA_ROTOR2_KM -0.05
+param set-default CA_ROTOR3_PX -1
+param set-default CA_ROTOR3_PY 1
+param set-default CA_ROTOR3_KM -0.05
+
+param set-default PWM_MAIN_FUNC1 101
+param set-default PWM_MAIN_FUNC2 102
+param set-default PWM_MAIN_FUNC3 103
+param set-default PWM_MAIN_FUNC4 104
+
+# --- DEXI comms (verified on H743-AIO board 1240) ---
+# Companion / mavlink-router on the GPS connector (USART3 = TELEM1)
+param set-default MAV_0_CONFIG 101
+param set-default MAV_0_MODE 0
+param set-default SER_TEL1_BAUD 500000
+
+# ROS 2 / uXRCE-DDS on the Air Unit connector (USART2 = TELEM2)
+param set-default UXRCE_DDS_CFG 102
+param set-default SER_TEL2_BAUD 921600
+
+# UP-T201 optical-flow + laser (MAVLink) on the optical-flow connector (UART4 = TELEM3)
+param set-default MAV_2_CONFIG 103
+param set-default MAV_2_MODE 0
+param set-default SER_TEL3_BAUD 115200
+
+# --- Indoor: GPS-denied, fuse optical flow + laser range ---
+param set-default EKF2_OF_CTRL 1     # fuse optical flow
+param set-default EKF2_RNG_CTRL 2    # always fuse range finder
+param set-default EKF2_HGT_REF 2     # range as primary height reference
+param set-default EKF2_OF_QMIN 50    # lower flow-quality gate for indoor
+param set-default EKF2_GPS_CTRL 0    # no GPS indoors
+param set-default COM_ARM_WO_GPS 1   # allow arming without GPS
+param set-default SENS_FLOW_ROT 0    # UP-T201 mounting orientation
+
+# RC receiver — CRSF on the dedicated RC pad (UART7 → CONFIG_BOARD_SERIAL_RC).
+# The built-in rc_input driver auto-detects CRSF on that port; the standalone
+# CRSF driver MUST stay disabled or it races rc_input on input_rc publication
+# and channels read as all-zero / rssi=255. Caught 2026-06-04 on the dev kit.
+param set-default RC_CRSF_PRT_CFG 0
