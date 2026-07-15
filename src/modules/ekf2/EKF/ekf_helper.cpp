@@ -1020,6 +1020,14 @@ void Ekf::updateIMUBiasInhibit(const imuSample &imu_delayed)
 		} else if (_control_status.flags.fake_pos || _control_status.flags.gravity_vector) {
 			// only consider an accel bias observable if aligned with the gravity vector
 			is_bias_observable = (fabsf(_R_to_earth(2, index)) > 0.966f); // cos 15 degrees ~= 0.966
+
+		} else if (index < 2 && isOnlyActiveSourceOfHorizontalAiding(_control_status.flags.opt_flow)) {
+			// Optical flow is the ONLY horizontal aiding source (GPS-denied). Flow measures
+			// velocity, not absolute position, so the horizontal (xy) accel bias is only weakly
+			// observable and walks off during flight, corrupting the next takeoff. Learn it only
+			// when that axis is aligned with the gravity vector (same rule as fake_pos); else
+			// freeze it. GPS/vision drones unaffected (flow not the sole horizontal source).
+			is_bias_observable = (fabsf(_R_to_earth(2, index)) > 0.966f);
 		}
 
 		_accel_bias_inhibit[index] = do_inhibit_all_accel_axes || imu_delayed.delta_vel_clipping[index] || !is_bias_observable;
