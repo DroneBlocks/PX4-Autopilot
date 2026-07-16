@@ -133,8 +133,15 @@ void getModeRequirements(uint8_t vehicle_type, failsafe_flags_s &flags)
 	// NAVIGATION_STATE_AUTO_TAKEOFF
 	setRequirement(vehicle_status_s::NAVIGATION_STATE_AUTO_TAKEOFF, flags.mode_req_angular_velocity);
 	setRequirement(vehicle_status_s::NAVIGATION_STATE_AUTO_TAKEOFF, flags.mode_req_attitude);
-	setRequirement(vehicle_status_s::NAVIGATION_STATE_AUTO_TAKEOFF, flags.mode_req_local_position);
 	setRequirement(vehicle_status_s::NAVIGATION_STATE_AUTO_TAKEOFF, flags.mode_req_local_alt);
+
+	if (vehicle_type == vehicle_status_s::VEHICLE_TYPE_ROTARY_WING) {
+		// DEXI: relaxed local position is sufficient to take off. A GPS-denied optical-flow vehicle
+		// holds a valid fake/constant position on the ground (eph small) but cannot satisfy the STRICT
+		// local-position requirement until optical flow starts fusing in the air (HAGL > SENS_FLOW_MINHGT).
+		// Relaxed mirrors AUTO_LAND and POSCTL, which already arm on the ground in this configuration.
+		setRequirement(vehicle_status_s::NAVIGATION_STATE_AUTO_TAKEOFF, flags.mode_req_local_position_relaxed);
+	}
 
 	// NAVIGATION_STATE_AUTO_LAND
 	setRequirement(vehicle_status_s::NAVIGATION_STATE_AUTO_LAND, flags.mode_req_angular_velocity);
