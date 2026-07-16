@@ -28,21 +28,35 @@ param set-default BAT1_V_EMPTY 3.0
 param set-default IMU_GYRO_CUTOFF 120
 param set-default IMU_DGYRO_CUTOFF 45
 
-param set-default MC_AIRMODE 1
-param set-default MC_PITCHRATE_D 0.0012
-param set-default MC_PITCHRATE_I 0.35
-param set-default MC_PITCHRATE_MAX 1200
-param set-default MC_PITCHRATE_P 0.082
-param set-default MC_PITCH_P 8
-param set-default MC_ROLLRATE_D 0.0012
-param set-default MC_ROLLRATE_I 0.3
-param set-default MC_ROLLRATE_MAX 1200
-param set-default MC_ROLLRATE_P 0.076
-param set-default MC_ROLL_P 8
-param set-default MC_YAWRATE_I 0.3
-param set-default MC_YAWRATE_MAX 600
-param set-default MC_YAWRATE_P 0.25
-param set-default MC_YAW_P 4
+# Board orientation: FC is mounted Yaw 45 in the DEXI-3 frame. The stock airframe
+# omitted this, forcing a hand-set after every flash (a wrong value cross-couples
+# roll/pitch -> oscillation). Set it here so a fresh flash is correct out of the box.
+param set-default SENS_BOARD_ROT 1
+
+# Flight tune — VALIDATED on two DEXI-3 units (2026-06-17), replacing the inherited
+# QAV250 gains that flew with arm-jitter (airmode) and a slow wallow (under-gained,
+# ~3x rate-tracking error in logs). This is PX4's stock multicopter tune scaled to
+# 70% via the rate-K master gain.
+# NOTE: effective rate gain = K * P (roll = 0.7 * 0.15 = 0.105). The K lines ARE
+# part of the tune — dropping them transfers the wrong effective gain.
+param set-default MC_AIRMODE 0
+param set-default MC_ROLLRATE_K 0.7
+param set-default MC_PITCHRATE_K 0.7
+param set-default MC_YAWRATE_K 1.0
+param set-default MC_ROLLRATE_P 0.15
+param set-default MC_PITCHRATE_P 0.15
+param set-default MC_ROLLRATE_I 0.2
+param set-default MC_PITCHRATE_I 0.2
+param set-default MC_ROLLRATE_D 0.003
+param set-default MC_PITCHRATE_D 0.003
+param set-default MC_ROLLRATE_MAX 220
+param set-default MC_PITCHRATE_MAX 220
+param set-default MC_YAWRATE_P 0.2
+param set-default MC_YAWRATE_I 0.1
+param set-default MC_YAWRATE_MAX 200
+param set-default MC_ROLL_P 6.5
+param set-default MC_PITCH_P 6.5
+param set-default MC_YAW_P 2.8
 
 param set-default MPC_MANTHR_MIN 0
 param set-default MPC_MAN_TILT_MAX 60
