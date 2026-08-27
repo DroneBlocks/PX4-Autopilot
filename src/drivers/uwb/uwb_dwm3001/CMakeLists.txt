@@ -1,6 +1,6 @@
 ############################################################################
 #
-#   Copyright (c) 2020 PX4 Development Team. All rights reserved.
+#   Copyright (c) 2026 DroneBlocks. All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -31,5 +31,15 @@
 #
 ############################################################################
 
-add_subdirectory(uwb_sr150)
-add_subdirectory(uwb_dwm3001)
+px4_add_module(
+	MODULE drivers__uwb__uwb_dwm3001
+	MAIN uwb_dwm3001
+	COMPILE_FLAGS
+	SRCS
+		uwb_dwm3001.cpp
+	DEPENDS
+		px4_work_queue
+		mathlib
+	MODULE_CONFIG
+		module.yaml
+)

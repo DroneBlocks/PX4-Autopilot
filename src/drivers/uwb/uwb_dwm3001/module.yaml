@@ -1,0 +1,240 @@
+module_name: UWB DWM3001C tag driver
+serial_config:
+  - command: uwb_dwm3001 start -d ${SERIAL_DEV}
+    port_config_param:
+      name: DWM_PORT_CFG
+      group: UWB DWM3001
+
+parameters:
+    - group: UWB DWM3001
+      definitions:
+        DWM_ANC_CNT:
+          description:
+            short: Number of surveyed UWB anchors
+            long: |
+              Anchor i is addressed as FiRa responder i+1 and is surveyed with
+              DWM_Ai_X / DWM_Ai_Y / DWM_Ai_Z. At least 3 are needed for a 2D fix;
+              4 or more gives redundancy when one anchor is blocked.
+              Note that two-way ranging is sequential, so the fix rate falls as
+              anchors are added. Measure the block rate before committing to a
+              large field.
+          type: int32
+          min: 0
+          max: 6
+          default: 0
+          reboot_required: true
+
+        DWM_DESLANT:
+          description:
+            short: De-slant ranges using height above ground
+            long: |
+              The 2D solver treats every range as a horizontal distance, but a
+              measured range is a slant distance. With anchors above the vehicle
+              the resulting bias is far larger than the radio noise (an anchor
+              1.5 m above the vehicle biases a 3 m range by about 35 cm, against
+              3-4 cm of jitter).
+              When enabled, ranges are corrected with
+              r_horizontal = sqrt(r_slant^2 - dz^2), using dist_bottom from
+              vehicle_local_position and the surveyed DWM_Ai_Z heights.
+              LEAVE THIS OFF until every anchor height is surveyed, otherwise
+              unset heights silently corrupt the fix. It is not needed for a
+              coplanar bench setup where anchors and tag are at the same height.
+          type: boolean
+          default: 0
+
+        DWM_RNG_SCALE:
+          description:
+            short: Range calibration slope
+            long: |
+              Linear antenna-delay correction, true_cm = DWM_RNG_SCALE * D_cm +
+              DWM_RNG_OFF. Re-run the tape calibration after any change of mount
+              or enclosure (Qorvo APS014).
+          type: float
+          decimal: 4
+          default: 0.978
+
+        DWM_RNG_OFF:
+          description:
+            short: Range calibration intercept
+          type: float
+          unit: cm
+          decimal: 2
+          default: 39.9
+
+        DWM_POS_NOISE:
+          description:
+            short: UWB horizontal position noise (1 sigma)
+            long: |
+              Published as the position variance on vehicle_visual_odometry.
+              EKF2 uses it as a lower bound when EKF2_EV_NOISE_MD is 0, or
+              directly when it is 1. Bench jitter was 3-4 cm.
+          type: float
+          unit: m
+          decimal: 3
+          min: 0.001
+          default: 0.04
+
+        DWM_YAW_OFF:
+          description:
+            short: Bearing of the survey +X axis from True North
+            long: |
+              Rotates the surveyed anchor frame into NED. With 0 the survey frame
+              IS NED: +X North, +Y East. Getting this wrong produces a rotated
+              trajectory that looks exactly like estimator drift, so verify it on
+              the ground before flying.
+          type: float
+          unit: deg
+          decimal: 1
+          min: -180.0
+          max: 180.0
+          default: 0.0
+
+        DWM_A0_X:
+          description:
+            short: Anchor 0 position along the survey X axis
+          type: float
+          unit: m
+          decimal: 3
+          default: 0.0
+
+        DWM_A0_Y:
+          description:
+            short: Anchor 0 position along the survey Y axis
+          type: float
+          unit: m
+          decimal: 3
+          default: 0.0
+
+        DWM_A0_Z:
+          description:
+            short: Anchor 0 height above the floor
+            long: Measured by hand. Only used when DWM_DESLANT is enabled.
+          type: float
+          unit: m
+          decimal: 3
+          default: 0.0
+
+        DWM_A1_X:
+          description:
+            short: Anchor 1 position along the survey X axis
+          type: float
+          unit: m
+          decimal: 3
+          default: 0.0
+
+        DWM_A1_Y:
+          description:
+            short: Anchor 1 position along the survey Y axis
+          type: float
+          unit: m
+          decimal: 3
+          default: 0.0
+
+        DWM_A1_Z:
+          description:
+            short: Anchor 1 height above the floor
+            long: Measured by hand. Only used when DWM_DESLANT is enabled.
+          type: float
+          unit: m
+          decimal: 3
+          default: 0.0
+
+        DWM_A2_X:
+          description:
+            short: Anchor 2 position along the survey X axis
+          type: float
+          unit: m
+          decimal: 3
+          default: 0.0
+
+        DWM_A2_Y:
+          description:
+            short: Anchor 2 position along the survey Y axis
+          type: float
+          unit: m
+          decimal: 3
+          default: 0.0
+
+        DWM_A2_Z:
+          description:
+            short: Anchor 2 height above the floor
+            long: Measured by hand. Only used when DWM_DESLANT is enabled.
+          type: float
+          unit: m
+          decimal: 3
+          default: 0.0
+
+        DWM_A3_X:
+          description:
+            short: Anchor 3 position along the survey X axis
+          type: float
+          unit: m
+          decimal: 3
+          default: 0.0
+
+        DWM_A3_Y:
+          description:
+            short: Anchor 3 position along the survey Y axis
+          type: float
+          unit: m
+          decimal: 3
+          default: 0.0
+
+        DWM_A3_Z:
+          description:
+            short: Anchor 3 height above the floor
+            long: Measured by hand. Only used when DWM_DESLANT is enabled.
+          type: float
+          unit: m
+          decimal: 3
+          default: 0.0
+
+        DWM_A4_X:
+          description:
+            short: Anchor 4 position along the survey X axis
+          type: float
+          unit: m
+          decimal: 3
+          default: 0.0
+
+        DWM_A4_Y:
+          description:
+            short: Anchor 4 position along the survey Y axis
+          type: float
+          unit: m
+          decimal: 3
+          default: 0.0
+
+        DWM_A4_Z:
+          description:
+            short: Anchor 4 height above the floor
+            long: Measured by hand. Only used when DWM_DESLANT is enabled.
+          type: float
+          unit: m
+          decimal: 3
+          default: 0.0
+
+        DWM_A5_X:
+          description:
+            short: Anchor 5 position along the survey X axis
+          type: float
+          unit: m
+          decimal: 3
+          default: 0.0
+
+        DWM_A5_Y:
+          description:
+            short: Anchor 5 position along the survey Y axis
+          type: float
+          unit: m
+          decimal: 3
+          default: 0.0
+
+        DWM_A5_Z:
+          description:
+            short: Anchor 5 height above the floor
+            long: Measured by hand. Only used when DWM_DESLANT is enabled.
+          type: float
+          unit: m
+          decimal: 3
+          default: 0.0

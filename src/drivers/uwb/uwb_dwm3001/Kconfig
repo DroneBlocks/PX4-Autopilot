@@ -1,0 +1,5 @@
+menuconfig DRIVERS_UWB_UWB_DWM3001
+	bool "uwb_dwm3001"
+	default n
+	---help---
+		Enable support for the Qorvo DWM3001C UWB tag (FiRa TWR initiator)
