@@ -146,6 +146,17 @@ Takeoff::set_takeoff_position()
 
 	// set current mission item to takeoff
 	set_takeoff_item(&_mission_item, takeoff_altitude_amsl);
+
+	// set_takeoff_item() takes the horizontal position from the global position, which is
+	// not published without a global reference and then reads as lat/lon 0. That projects to
+	// the local origin rather than to the vehicle, so an auto takeoff translates back to
+	// wherever the estimator was initialised before climbing. Leave the horizontal position
+	// undefined instead; FlightTaskAuto locks onto the current position when it is not finite,
+	// which is what "use current position" is meant to give us here.
+	if (!_navigator->get_local_position()->xy_global) {
+		_mission_item.lat = static_cast<double>(NAN);
+		_mission_item.lon = static_cast<double>(NAN);
+	}
 	_navigator->get_mission_result()->finished = false;
 	_navigator->set_mission_result_updated();
 	reset_mission_item_reached();
