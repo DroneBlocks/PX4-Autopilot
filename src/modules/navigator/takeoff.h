@@ -55,4 +55,12 @@ public:
 private:
 
 	void set_takeoff_position();
+
+	/**
+	 * Altitude the default takeoff altitude is added on top of.
+	 *
+	 * Normally the vehicle's current AMSL altitude. When no global altitude reference
+	 * exists the local altitude is used instead, see the implementation for why.
+	 */
+	float get_takeoff_base_altitude() const;
 };

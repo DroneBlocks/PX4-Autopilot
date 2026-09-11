@@ -92,6 +92,28 @@ Takeoff::on_active()
 	}
 }
 
+float
+Takeoff::get_takeoff_base_altitude() const
+{
+	// Without a global altitude reference (GPS-denied flight, e.g. indoors on optical flow)
+	// the estimator does not publish a global position, so the navigator's copy stays at its
+	// default and reports an altitude of 0. Adding MIS_TAKEOFF_ALT to that makes the vehicle
+	// climb to a fixed altitude above the local origin captured at boot rather than above
+	// where it currently is, so every subsequent takeoff in the same power cycle ends up at a
+	// different height as the local altitude estimate drifts.
+	//
+	// The setpoint altitude is interpreted in the local frame in that case (FlightTaskAuto
+	// zeroes its reference altitude when vehicle_local_position.z_global is false), so the
+	// local altitude is the matching base to add the takeoff altitude to.
+	const vehicle_local_position_s *local_pos = _navigator->get_local_position();
+
+	if (!local_pos->z_global && local_pos->z_valid && PX4_ISFINITE(local_pos->z)) {
+		return -local_pos->z;
+	}
+
+	return _navigator->get_global_position()->alt;
+}
+
 void
 Takeoff::set_takeoff_position()
 {
@@ -99,11 +121,13 @@ Takeoff::set_takeoff_position()
 
 	float takeoff_altitude_amsl = 0.f;
 
+	const float takeoff_base_altitude = get_takeoff_base_altitude();
+
 	if (rep->current.valid && PX4_ISFINITE(rep->current.alt)) {
 		takeoff_altitude_amsl = rep->current.alt;
 
 	} else {
-		takeoff_altitude_amsl = _navigator->get_global_position()->alt + _navigator->get_param_mis_takeoff_alt();
+		takeoff_altitude_amsl = takeoff_base_altitude + _navigator->get_param_mis_takeoff_alt();
 		mavlink_log_info(_navigator->get_mavlink_log_pub(),
 				 "Using default takeoff altitude: %.1f m\t", (double)_navigator->get_param_mis_takeoff_alt());
 
@@ -112,9 +136,9 @@ Takeoff::set_takeoff_position()
 				    _navigator->get_param_mis_takeoff_alt());
 	}
 
-	if (takeoff_altitude_amsl < _navigator->get_global_position()->alt) {
+	if (takeoff_altitude_amsl < takeoff_base_altitude) {
 		// If the suggestion is lower than our current alt, let's not go down.
-		takeoff_altitude_amsl = _navigator->get_global_position()->alt;
+		takeoff_altitude_amsl = takeoff_base_altitude;
 		mavlink_log_critical(_navigator->get_mavlink_log_pub(), "Already higher than takeoff altitude\t");
 		events::send(events::ID("navigator_takeoff_already_higher"), {events::Log::Error, events::LogInternal::Info},
 			     "Already higher than takeoff altitude (not descending)");
@@ -122,6 +146,17 @@ Takeoff::set_takeoff_position()
 
 	// set current mission item to takeoff
 	set_takeoff_item(&_mission_item, takeoff_altitude_amsl);
+
+	// set_takeoff_item() takes the horizontal position from the global position, which is
+	// not published without a global reference and then reads as lat/lon 0. That projects to
+	// the local origin rather than to the vehicle, so an auto takeoff translates back to
+	// wherever the estimator was initialised before climbing. Leave the horizontal position
+	// undefined instead; FlightTaskAuto locks onto the current position when it is not finite,
+	// which is what "use current position" is meant to give us here.
+	if (!_navigator->get_local_position()->xy_global) {
+		_mission_item.lat = static_cast<double>(NAN);
+		_mission_item.lon = static_cast<double>(NAN);
+	}
 	_navigator->get_mission_result()->finished = false;
 	_navigator->set_mission_result_updated();
 	reset_mission_item_reached();
