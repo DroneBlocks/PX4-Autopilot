@@ -2926,7 +2926,12 @@ void Commander::manualControlCheck()
 				if (override_enabled) {
 					// If no failsafe is active, directly change the mode, otherwise pass the request to the failsafe state machine
 					if (_failsafe.selectedAction() <= FailsafeBase::Action::Warn) {
-						if (_user_mode_intention.change(vehicle_status_s::NAVIGATION_STATE_POSCTL, ModeChangeSource::User, true)) {
+						// TEST BUILD ONLY (DEXI-3 auto-takeoff handoff trial, 2026-09-14):
+						// stick override out of an auto mode drops to STABILIZED, not POSCTL,
+						// so the handoff from auto takeoff lands in attitude-only control.
+						// NOTE: this affects EVERY auto mode (RTL/Land/Mission), not just Takeoff.
+						// Do not ship. Revert before any customer image.
+						if (_user_mode_intention.change(vehicle_status_s::NAVIGATION_STATE_STAB, ModeChangeSource::User, true)) {
 							tune_positive(true);
 							mavlink_log_info(&_mavlink_log_pub, "Pilot took over using sticks\t");
 							events::send(events::ID("commander_rc_override"), events::Log::Info, "Pilot took over using sticks");
