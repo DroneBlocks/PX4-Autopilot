@@ -115,3 +115,31 @@ PARAM_DEFINE_FLOAT(MPC_HOLD_MAX_XY, 0.8f);
  * @group Multicopter Position Control
  */
 PARAM_DEFINE_FLOAT(MPC_HOLD_MAX_Z, 0.6f);
+
+/**
+ * Maximum height above the floor in Altitude and Position modes
+ *
+ * Limits how far the vehicle climbs above whatever the downward range finder is
+ * pointing at, for flying indoors under a known roof height. Enforced as a
+ * proportional slowdown, exactly the way the range finder's own limit is, so the
+ * vehicle eases to a stop instead of stopping dead.
+ *
+ * Requires a working downward range finder: it has no effect when the distance to
+ * the ground is unknown. It does not apply to auto modes -- use MIS_TAKEOFF_ALT
+ * to cap an auto takeoff.
+ *
+ * WARNING: this limits height above what is BELOW the vehicle, not height below
+ * the ceiling. Flying over furniture lowers the measured distance, so the vehicle
+ * believes it has regained headroom and climbs closer to the real roof. Treat it
+ * as a convenience limit, not as protection against hitting the ceiling.
+ *
+ * Disabled if 0.
+ *
+ * @unit m
+ * @min 0
+ * @max 100
+ * @decimal 2
+ * @increment 0.1
+ * @group Multicopter Position Control
+ */
+PARAM_DEFINE_FLOAT(MPC_HAGL_MAX, 0.0f);

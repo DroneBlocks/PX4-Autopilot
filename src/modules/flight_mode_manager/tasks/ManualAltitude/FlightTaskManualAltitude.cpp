@@ -84,6 +84,22 @@ void FlightTaskManualAltitude::_updateConstraintsFromEstimator()
 	if (!PX4_ISFINITE(_max_distance_to_ground) && PX4_ISFINITE(_sub_vehicle_local_position.get().hagl_max_z)) {
 		_max_distance_to_ground = _sub_vehicle_local_position.get().hagl_max_z;
 	}
+
+	// Operator ceiling (MPC_HAGL_MAX), for flying indoors under a known roof height.
+	//
+	// The EKF only publishes hagl_max_z when the range finder is the ONLY active
+	// source of vertical aiding, which is not our indoor configuration (baro stays
+	// on), so that value is usually infinite and nothing limits the climb. This
+	// takes the tighter of the two, so the sensor limit still applies when the EKF
+	// does supply one.
+	//
+	// ⚠️ This is a HEIGHT-ABOVE-FLOOR limit, not a height-below-ceiling limit. Over
+	// furniture _dist_to_bottom drops, so the aircraft believes it has regained
+	// headroom and will climb closer to the real ceiling. It is a convenience
+	// limit, not a guard.
+	if (_param_mpc_hagl_max.get() > FLT_EPSILON) {
+		_max_distance_to_ground = fminf(_max_distance_to_ground, _param_mpc_hagl_max.get());
+	}
 }
 
 void FlightTaskManualAltitude::_scaleSticks()
