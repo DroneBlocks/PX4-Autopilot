@@ -213,6 +213,7 @@ EKF2::EKF2(bool multi_mode, const px4::wq_config_t &config, bool replay_mode):
 	_param_ekf2_abl_lim(_params->acc_bias_lim),
 	_param_ekf2_abl_acclim(_params->acc_bias_learn_acc_lim),
 	_param_ekf2_abl_gyrlim(_params->acc_bias_learn_gyr_lim),
+	_param_ekf2_clip_hold(_params->clip_hold),
 	_param_ekf2_abl_tau(_params->acc_bias_learn_tc),
 	_param_ekf2_gyr_b_lim(_params->gyro_bias_lim)
 {

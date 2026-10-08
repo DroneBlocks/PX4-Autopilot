@@ -331,6 +331,11 @@ protected:
 
 	parameters _params{};		// filter parameters
 
+	// last delta velocity from a sample with no clipped axis (EKF2_CLIP_HOLD)
+	Vector3f _clip_hold_delta_vel{};
+	float _clip_hold_delta_vel_dt{0.f};
+	bool _clip_hold_valid{false};
+
 	/*
 	 OBS_BUFFER_LENGTH defines how many observations (non-IMU measurements) we can buffer
 	 which sets the maximum frequency at which we can process non-IMU measurements. Measurements that

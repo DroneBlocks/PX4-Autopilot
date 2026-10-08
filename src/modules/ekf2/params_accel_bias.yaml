@@ -70,3 +70,16 @@ parameters:
       max: 1.0
       unit: s
       decimal: 2
+    EKF2_CLIP_HOLD:
+      description:
+        short: Hold last unclipped accel sample while clipping
+        long: When an accelerometer axis reports clipping, integrate the last delta
+          velocity from a sample with no clipped axis, scaled to the current sample
+          interval, instead of the saturated value. A saturated reading under-reports
+          the true acceleration and is integrated as a false velocity change, typically
+          a false descent after an impact.
+      type: enum
+      values:
+        0: Disabled
+        1: Enabled
+      default: 1

@@ -472,6 +472,7 @@ struct parameters {
 	float acc_bias_learn_acc_lim{25.0f};    ///< learning is disabled if the magnitude of the IMU acceleration vector is greater than this (m/sec**2)
 	float acc_bias_learn_gyr_lim{3.0f};     ///< learning is disabled if the magnitude of the IMU angular rate vector is greater than this (rad/sec)
 	float acc_bias_learn_tc{0.5f};          ///< time constant used to control the decaying envelope filters applied to the accel and gyro magnitudes (sec)
+	int32_t clip_hold{1};                   ///< substitute the last unclipped delta velocity on clipped accel axes
 
 	float gyro_bias_lim{0.4f};              ///< maximum gyro bias magnitude (rad/sec)
 

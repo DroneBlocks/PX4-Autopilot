@@ -76,8 +76,30 @@ EstimatorInterface::~EstimatorInterface()
 }
 
 // Accumulate imu data and store to buffer at desired rate
-void EstimatorInterface::setIMUData(const imuSample &imu_sample)
+void EstimatorInterface::setIMUData(const imuSample &imu_sample_in)
 {
+	imuSample imu_sample = imu_sample_in;
+
+	if (_params.clip_hold != 0) {
+		bool any_clipped = false;
+
+		for (int i = 0; i < 3; i++) {
+			if (imu_sample.delta_vel_clipping[i]) {
+				any_clipped = true;
+
+				if (_clip_hold_valid && (_clip_hold_delta_vel_dt > FLT_EPSILON)) {
+					imu_sample.delta_vel(i) = _clip_hold_delta_vel(i) * (imu_sample.delta_vel_dt / _clip_hold_delta_vel_dt);
+				}
+			}
+		}
+
+		if (!any_clipped) {
+			_clip_hold_delta_vel = imu_sample.delta_vel;
+			_clip_hold_delta_vel_dt = imu_sample.delta_vel_dt;
+			_clip_hold_valid = true;
+		}
+	}
+
 	// TODO: resolve misplaced responsibility
 	if (!_initialised) {
 		_initialised = init(imu_sample.time_us);

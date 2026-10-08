@@ -712,6 +712,7 @@ private:
 		_param_ekf2_abl_acclim,	///< Maximum IMU accel magnitude that allows IMU bias learning (m/s**2)
 		(ParamExtFloat<px4::params::EKF2_ABL_GYRLIM>)
 		_param_ekf2_abl_gyrlim,	///< Maximum IMU gyro angular rate magnitude that allows IMU bias learning (m/s**2)
+		(ParamExtInt<px4::params::EKF2_CLIP_HOLD>) _param_ekf2_clip_hold,
 		(ParamExtFloat<px4::params::EKF2_ABL_TAU>)
 		_param_ekf2_abl_tau,	///< Time constant used to inhibit IMU delta velocity bias learning (sec)
 
