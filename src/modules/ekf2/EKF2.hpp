@@ -622,6 +622,8 @@ private:
 		(ParamExtFloat<px4::params::EKF2_RNG_QLTY_T>) _param_ekf2_rng_qlty_t,
 		(ParamExtFloat<px4::params::EKF2_RNG_K_GATE>) _param_ekf2_rng_k_gate,
 		(ParamExtInt<px4::params::EKF2_RNG_VRST>) _param_ekf2_rng_vrst,
+		(ParamExtFloat<px4::params::EKF2_RNG_VRST_D>) _param_ekf2_rng_vrst_d,
+		(ParamExtFloat<px4::params::EKF2_RNG_VRST_T>) _param_ekf2_rng_vrst_t,
 		(ParamExtFloat<px4::params::EKF2_RNG_FOG>) _param_ekf2_rng_fog,
 		(ParamExtFloat<px4::params::EKF2_RNG_POS_X>) _param_ekf2_rng_pos_x,
 		(ParamExtFloat<px4::params::EKF2_RNG_POS_Y>) _param_ekf2_rng_pos_y,

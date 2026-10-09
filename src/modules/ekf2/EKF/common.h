@@ -424,6 +424,8 @@ struct parameters {
 	float range_cos_max_tilt{0.7071f};      ///< cosine of the maximum tilt angle from the vertical that permits use of range finder and flow data
 	float range_kin_consistency_gate{1.0f}; ///< gate size used by the range finder kinematic consistency check
 	int32_t rng_vel_reset{0};               ///< reset the vertical velocity to the range rate when the estimate shows a descent the range finder does not
+	float rng_vel_reset_div{0.7f};           ///< range climb minus estimated climb that triggers it (m/s)
+	float rng_vel_reset_time{0.15f};         ///< how long the divergence must persist (s)
 	float rng_fog{0.f};                 	///< max distance which a blocked range sensor measures (fog, dirt) [m]
 
 	Vector3f rng_pos_body{};                ///< xyz position of range sensor in body frame (m)

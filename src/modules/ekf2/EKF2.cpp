@@ -164,6 +164,8 @@ EKF2::EKF2(bool multi_mode, const px4::wq_config_t &config, bool replay_mode):
 	_param_ekf2_rng_qlty_t(_params->range_valid_quality_s),
 	_param_ekf2_rng_k_gate(_params->range_kin_consistency_gate),
 	_param_ekf2_rng_vrst(_params->rng_vel_reset),
+	_param_ekf2_rng_vrst_d(_params->rng_vel_reset_div),
+	_param_ekf2_rng_vrst_t(_params->rng_vel_reset_time),
 	_param_ekf2_rng_fog(_params->rng_fog),
 	_param_ekf2_rng_pos_x(_params->rng_pos_body(0)),
 	_param_ekf2_rng_pos_y(_params->rng_pos_body(1)),

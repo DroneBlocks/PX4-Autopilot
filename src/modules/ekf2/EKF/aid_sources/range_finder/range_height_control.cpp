@@ -361,10 +361,9 @@ void Ekf::checkRangeVerticalVelocityDivergence()
 	static constexpr float kCosMaxTilt = 0.866f;      // 30 deg
 	static constexpr float kMinDist = 0.35f;          // m
 	static constexpr float kRateTau = 0.1f;           // s, range rate low pass
-	static constexpr float kDivergence = 1.f;         // m/s, range climb minus estimated climb
 	static constexpr float kEstDescent = -0.5f;       // m/s, estimated climb rate below which it applies
 	static constexpr float kAgree = 0.3f;             // m/s, below this the estimate and the range agree
-	static constexpr uint64_t kHoldUs = 300'000;      // divergence must persist this long
+	static constexpr float kMaxStepRate = 4.f;        // m/s, faster range changes are a terrain step (table, gate base), not motion
 	static constexpr uint64_t kHoldoffUs = 1'000'000; // minimum time between resets
 	static constexpr uint64_t kMaxGapUs = 500'000;    // range history survives tilt spikes this long
 	static constexpr uint64_t kMaxAnchorAgeUs = 3'000'000;
@@ -395,6 +394,17 @@ void Ekf::checkRangeVerticalVelocityDivergence()
 
 	const float dt = (now - _rng_vrst_prev_time_us) * 1e-6f;
 	const float rate = (dist - _rng_vrst_prev_dist) / dt;
+
+	if (fabsf(rate) > kMaxStepRate) {
+		// the ground under the sensor changed height: restart the rate, and the anchor no longer applies
+		_rng_vrst_prev_dist = dist;
+		_rng_vrst_prev_time_us = now;
+		_rng_vrst_rate_lpf = NAN;
+		_rng_vrst_diverged_since_us = 0;
+		_rng_vrst_anchor_time_us = 0;
+		return;
+	}
+
 	_rng_vrst_rate_lpf = PX4_ISFINITE(_rng_vrst_rate_lpf)
 			     ? _rng_vrst_rate_lpf + (rate - _rng_vrst_rate_lpf) * math::min(dt / kRateTau, 1.f)
 			     : rate;
@@ -411,12 +421,13 @@ void Ekf::checkRangeVerticalVelocityDivergence()
 		_rng_vrst_anchor_time_us = now;
 	}
 
-	if ((est_climb < kEstDescent) && (divergence > kDivergence)) {
+	if ((est_climb < kEstDescent) && (divergence > _params.rng_vel_reset_div)) {
 		if (_rng_vrst_diverged_since_us == 0) {
 			_rng_vrst_diverged_since_us = now;
 		}
 
-		if ((now - _rng_vrst_diverged_since_us >= kHoldUs) && (now - _rng_vrst_last_reset_us >= kHoldoffUs)) {
+		if ((now - _rng_vrst_diverged_since_us >= (uint64_t)(_params.rng_vel_reset_time * 1e6f))
+		    && (now - _rng_vrst_last_reset_us >= kHoldoffUs)) {
 			ECL_WARN("vert vel reset to range rate %.1f (was %.1f)", (double)_rng_vrst_rate_lpf, (double)est_climb);
 			resetVerticalVelocityTo(-_rng_vrst_rate_lpf, sq(0.3f));
 
