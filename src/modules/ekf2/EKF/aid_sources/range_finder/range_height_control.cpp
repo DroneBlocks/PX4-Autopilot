@@ -75,6 +75,8 @@ void Ekf::controlRangeHaglFusion(const imuSample &imu_sample)
 				_rng_consistency_check.setGate(_params.range_kin_consistency_gate);
 				_rng_consistency_check.update(_range_sensor.getDistBottom(), math::max(var, 0.001f), _state.vel(2),
 							      P(State::vel.idx + 2, State::vel.idx + 2), horizontal_motion, imu_sample.time_us);
+
+				checkRangeVerticalVelocityDivergence();
 			}
 
 		} else {
@@ -352,4 +354,81 @@ void Ekf::stopRngHgtFusion()
 void Ekf::stopRngTerrFusion()
 {
 	_control_status.flags.rng_terrain = false;
+}
+
+void Ekf::checkRangeVerticalVelocityDivergence()
+{
+	static constexpr float kCosMaxTilt = 0.866f;      // 30 deg
+	static constexpr float kMinDist = 0.35f;          // m
+	static constexpr float kRateTau = 0.1f;           // s, range rate low pass
+	static constexpr float kDivergence = 1.f;         // m/s, range climb minus estimated climb
+	static constexpr float kEstDescent = -0.5f;       // m/s, estimated climb rate below which it applies
+	static constexpr float kAgree = 0.3f;             // m/s, below this the estimate and the range agree
+	static constexpr uint64_t kHoldUs = 300'000;      // divergence must persist this long
+	static constexpr uint64_t kHoldoffUs = 1'000'000; // minimum time between resets
+	static constexpr uint64_t kMaxGapUs = 500'000;    // range history survives tilt spikes this long
+	static constexpr uint64_t kMaxAnchorAgeUs = 3'000'000;
+
+	if (_params.rng_vel_reset == 0) {
+		return;
+	}
+
+	const float dist = _range_sensor.getDistBottom();
+	const uint64_t now = _range_sensor.getSampleAddress()->time_us;
+
+	if ((_range_sensor.getCosTilt() < kCosMaxTilt) || (dist < kMinDist)) {
+		// keep the history through a short tilt spike (an impact), drop it after a long one
+		if (now - _rng_vrst_prev_time_us > kMaxGapUs) {
+			_rng_vrst_prev_dist = NAN;
+		}
+
+		return;
+	}
+
+	if (!PX4_ISFINITE(_rng_vrst_prev_dist) || (now <= _rng_vrst_prev_time_us) || (now - _rng_vrst_prev_time_us > kMaxGapUs)) {
+		_rng_vrst_prev_dist = dist;
+		_rng_vrst_prev_time_us = now;
+		_rng_vrst_rate_lpf = NAN;
+		_rng_vrst_diverged_since_us = 0;
+		return;
+	}
+
+	const float dt = (now - _rng_vrst_prev_time_us) * 1e-6f;
+	const float rate = (dist - _rng_vrst_prev_dist) / dt;
+	_rng_vrst_rate_lpf = PX4_ISFINITE(_rng_vrst_rate_lpf)
+			     ? _rng_vrst_rate_lpf + (rate - _rng_vrst_rate_lpf) * math::min(dt / kRateTau, 1.f)
+			     : rate;
+	_rng_vrst_prev_dist = dist;
+	_rng_vrst_prev_time_us = now;
+
+	const float est_climb = -_state.vel(2);
+	const float divergence = _rng_vrst_rate_lpf - est_climb;
+
+	if (fabsf(divergence) < kAgree) {
+		// last point where the estimate and the range agreed, used to correct the height on a reset
+		_rng_vrst_anchor_alt = _gpos.altitude();
+		_rng_vrst_anchor_dist = dist;
+		_rng_vrst_anchor_time_us = now;
+	}
+
+	if ((est_climb < kEstDescent) && (divergence > kDivergence)) {
+		if (_rng_vrst_diverged_since_us == 0) {
+			_rng_vrst_diverged_since_us = now;
+		}
+
+		if ((now - _rng_vrst_diverged_since_us >= kHoldUs) && (now - _rng_vrst_last_reset_us >= kHoldoffUs)) {
+			ECL_WARN("vert vel reset to range rate %.1f (was %.1f)", (double)_rng_vrst_rate_lpf, (double)est_climb);
+			resetVerticalVelocityTo(-_rng_vrst_rate_lpf, sq(0.3f));
+
+			if (now - _rng_vrst_anchor_time_us < kMaxAnchorAgeUs) {
+				resetAltitudeTo(_rng_vrst_anchor_alt + (dist - _rng_vrst_anchor_dist), sq(0.1f));
+			}
+
+			_rng_vrst_last_reset_us = now;
+			_rng_vrst_diverged_since_us = 0;
+		}
+
+	} else {
+		_rng_vrst_diverged_since_us = 0;
+	}
 }

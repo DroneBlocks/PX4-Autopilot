@@ -117,6 +117,20 @@ parameters:
       unit: SD
       min: 0.1
       max: 5.0
+    EKF2_RNG_VRST:
+      description:
+        short: Reset vertical velocity from the range finder on a false descent
+        long: 'When the estimated vertical velocity shows a descent of more than 0.5 m/s
+          while the tilt-corrected range rate shows at least 1 m/s more climb than that,
+          for 0.3 s, the vertical velocity is reset to the range rate. Only active in air,
+          below 30 deg range finder tilt and above 0.35 m. Targets the false descent an
+          impact produces when it saturates the accelerometer, which the height reference
+          is often too slow to correct.'
+      type: enum
+      values:
+        0: Disabled
+        1: Enabled
+      default: 0
     EKF2_RNG_SFE:
       description:
         short: Range finder range dependent noise scaler

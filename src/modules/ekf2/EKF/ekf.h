@@ -737,6 +737,9 @@ private:
 
 	void resetVerticalVelocityToZero();
 
+	// reset the vertical velocity to the range rate when the estimate shows a descent the range finder does not
+	void checkRangeVerticalVelocityDivergence();
+
 	// horizontal and vertical position aid source
 	void updateVerticalPositionAidStatus(estimator_aid_source1d_s &aid_src, const uint64_t &time_us,
 					     const float observation, const float observation_variance, const float innovation_gate = 1.f) const;

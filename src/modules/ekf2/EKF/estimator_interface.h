@@ -374,6 +374,16 @@ protected:
 
 	sensor::SensorRangeFinder _range_sensor{};
 	RangeFinderConsistencyCheck _rng_consistency_check;
+
+	// range rate vs estimated vertical velocity divergence (EKF2_RNG_VRST)
+	float _rng_vrst_prev_dist{NAN};
+	uint64_t _rng_vrst_prev_time_us{0};
+	float _rng_vrst_rate_lpf{0.f};
+	uint64_t _rng_vrst_diverged_since_us{0};
+	uint64_t _rng_vrst_last_reset_us{0};
+	float _rng_vrst_anchor_alt{0.f};
+	float _rng_vrst_anchor_dist{0.f};
+	uint64_t _rng_vrst_anchor_time_us{0};
 #endif // CONFIG_EKF2_RANGE_FINDER
 
 #if defined(CONFIG_EKF2_OPTICAL_FLOW)
