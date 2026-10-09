@@ -121,6 +121,12 @@ public:
 	void setTiltLimit(const float tilt) { _lim_tilt = tilt; }
 
 	/**
+	 * Set the maximum magnitude of the horizontal velocity integral
+	 * @param limit in m/s^2, 0 disables the limit
+	 */
+	void setHorizontalIntegralLimit(const float limit) { _lim_vel_int_horizontal = limit; }
+
+	/**
 	 * Set the normalized hover thrust
 	 * @param hover_thrust [HOVER_THRUST_MIN, HOVER_THRUST_MAX] with which the vehicle hovers not accelerating down or up with level orientation
 	 */
@@ -215,6 +221,7 @@ private:
 	float _lim_thr_max{}; ///< Maximum collective thrust allowed as output [-1,0] e.g. -0.1
 	float _lim_thr_xy_margin{}; ///< Margin to keep for horizontal control when saturating prioritized vertical thrust
 	float _lim_tilt{}; ///< Maximum tilt from level the output attitude is allowed to have
+	float _lim_vel_int_horizontal{}; ///< Maximum magnitude of the horizontal velocity integral, 0 = unlimited
 
 	float _hover_thrust{}; ///< Thrust [HOVER_THRUST_MIN, HOVER_THRUST_MAX] with which the vehicle hovers not accelerating down or up with level orientation
 	bool _decouple_horizontal_and_vertical_acceleration{true}; ///< Ignore vertical acceleration setpoint to remove its effect on the tilt setpoint

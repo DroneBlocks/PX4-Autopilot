@@ -384,3 +384,43 @@ TEST_F(PositionControlBasicTest, IntegratorWindupWithInvalidSetpoint)
 	EXPECT_FLOAT_EQ(euler_att.phi(), 0.f);
 	EXPECT_FLOAT_EQ(euler_att.theta(), 0.f);
 }
+
+static float heldInPlaceHorizontalAcceleration(const float integral_limit)
+{
+	// Vehicle commanded to move at 1 m/s but held at zero velocity, e.g. pushed against an obstacle
+	PositionControl position_control;
+	position_control.setPositionGains(Vector3f(1.f, 1.f, 1.f));
+	position_control.setVelocityGains(Vector3f(.1f, .1f, .1f), Vector3f(1.f, 1.f, 1.f), Vector3f(0.f, 0.f, 0.f));
+	position_control.setVelocityLimits(2.f, 1.f, 1.f);
+	position_control.setThrustLimits(0.1f, 0.9f);
+	position_control.setHorizontalThrustMargin(0.3f);
+	position_control.setTiltLimit(1.f);
+	position_control.setHoverThrust(.5f);
+	position_control.setHorizontalIntegralLimit(integral_limit);
+
+	PositionControlStates states{};
+	position_control.setState(states);
+
+	trajectory_setpoint_s input_setpoint{PositionControl::empty_trajectory_setpoint};
+	Vector3f(1.f, 0.f, 0.f).copyTo(input_setpoint.velocity);
+
+	for (int i = 0; i < 50; i++) {
+		// The controller modifies its setpoint in place, so it is set every cycle as in flight
+		position_control.setInputSetpoint(input_setpoint);
+		position_control.update(.1f);
+	}
+
+	vehicle_local_position_setpoint_s output_setpoint{};
+	position_control.getLocalPositionSetpoint(output_setpoint);
+	return output_setpoint.acceleration[0];
+}
+
+TEST(PositionControlHorizontalIntegralLimitTest, HeldInPlace)
+{
+	// WITHOUT a limit the integral keeps growing while the vehicle is held: 0.1 P + 5 s * 1 I
+	EXPECT_GT(heldInPlaceHorizontalAcceleration(0.f), 4.f);
+
+	// WITH a limit the stored correction stops at the limit; only the proportional part adds to it
+	EXPECT_LE(heldInPlaceHorizontalAcceleration(1.5f), 1.5f + .1f + 1e-3f);
+	EXPECT_GT(heldInPlaceHorizontalAcceleration(1.5f), 1.5f);
+}

@@ -142,6 +142,18 @@ void PositionControl::_velocityControl(const float dt)
 	// Constrain vertical velocity integral
 	_vel_int(2) = math::constrain(_vel_int(2), -CONSTANTS_ONE_G, CONSTANTS_ONE_G);
 
+	// Constrain horizontal velocity integral magnitude. The tracking anti-windup below only acts once the
+	// output saturates, so without this limit an aircraft held in place (e.g. pushed against an obstacle)
+	// stores up to the full tilt-limited acceleration and releases it when the obstacle gives way.
+	if (_lim_vel_int_horizontal > FLT_EPSILON) {
+		const Vector2f vel_int_xy(_vel_int);
+		const float vel_int_xy_norm = vel_int_xy.norm();
+
+		if (vel_int_xy_norm > _lim_vel_int_horizontal) {
+			_vel_int.xy() = vel_int_xy * (_lim_vel_int_horizontal / vel_int_xy_norm);
+		}
+	}
+
 	// PID velocity control
 	Vector3f vel_error = _vel_sp - _vel;
 	Vector3f acc_sp_velocity = vel_error.emult(_gain_vel_p) + _vel_int - _vel_dot.emult(_gain_vel_d);

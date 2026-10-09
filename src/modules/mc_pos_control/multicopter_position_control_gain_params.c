@@ -111,6 +111,24 @@ PARAM_DEFINE_FLOAT(MPC_Z_VEL_I_ACC, 2.f);
 PARAM_DEFINE_FLOAT(MPC_XY_VEL_I_ACC, 0.4f);
 
 /**
+ * Horizontal velocity integral limit
+ *
+ * Maximum magnitude of the horizontal velocity integral, as a correction acceleration.
+ * Bounds what the integrator can store while the vehicle is held in place, for example
+ * pushed against an obstacle, and so bounds the lunge when it is released.
+ * Must stay above the steady correction the vehicle needs to hold position.
+ * 0 disables the limit.
+ *
+ * @unit m/s^2
+ * @min 0
+ * @max 10
+ * @decimal 2
+ * @increment 0.1
+ * @group Multicopter Position Control
+ */
+PARAM_DEFINE_FLOAT(MPC_XY_INT_LIM, 0.f);
+
+/**
  * Differential gain for vertical velocity error
  *
  * Defined as corrective acceleration in m/s^2 per m/s^2 velocity derivative

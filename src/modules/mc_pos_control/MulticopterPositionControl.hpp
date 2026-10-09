@@ -137,6 +137,7 @@ private:
 		(ParamFloat<px4::params::MPC_Z_P>)          _param_mpc_z_p,
 		(ParamFloat<px4::params::MPC_XY_VEL_P_ACC>) _param_mpc_xy_vel_p_acc,
 		(ParamFloat<px4::params::MPC_XY_VEL_I_ACC>) _param_mpc_xy_vel_i_acc,
+		(ParamFloat<px4::params::MPC_XY_INT_LIM>)   _param_mpc_xy_int_lim,
 		(ParamFloat<px4::params::MPC_XY_VEL_D_ACC>) _param_mpc_xy_vel_d_acc,
 		(ParamFloat<px4::params::MPC_Z_VEL_P_ACC>)  _param_mpc_z_vel_p_acc,
 		(ParamFloat<px4::params::MPC_Z_VEL_I_ACC>)  _param_mpc_z_vel_i_acc,
