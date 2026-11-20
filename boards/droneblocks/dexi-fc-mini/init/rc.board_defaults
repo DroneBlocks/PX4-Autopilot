@@ -1,0 +1,31 @@
+#!/bin/sh
+#
+# DEXI-FC-Mini specific board defaults
+#------------------------------------------------------------------------------
+
+# Battery: VBAT sense is R14 200k / R15 22k from VCC_24V -> (200 + 22) / 22 = 10.09.
+param set-default BAT1_V_DIV 10.09
+# Current comes from the ESC on J6 pin 2. dexi-4in1: INA186A4 on a 0.1 mOhm
+# shunt = 20 mV/A -> 50 A/V. Change this if another ESC is used.
+param set-default BAT1_A_PER_V 50.0
+
+# IMU position relative to the vehicle CoG, assumed at the board centre.
+# Body frame FRD, forward = KiCad -y. U15 at (112.9, 129.0) mm, board centre
+# at (118.5, 118.5) mm: 10.5 mm aft, 5.6 mm left. Z left at 0 (CoG height unknown).
+param set-default EKF2_IMU_POS_X -0.0105
+param set-default EKF2_IMU_POS_Y -0.0056
+
+# No on-board mag; GPS mag on I2C4 is optional.
+param set-default SYS_HAS_MAG 0
+
+# No VBUS sense pin on this board: USB always reads as connected.
+param set-default CBRK_USB_CHK 197848
+
+# Serial: TEL2 (UART4, J4) = companion over uXRCE-DDS, TEL3 (USART6, J12) = MAVLink optical flow.
+param set-default UXRCE_DDS_CFG 102
+param set-default SER_TEL2_BAUD 921600
+param set-default MAV_2_CONFIG 103
+param set-default MAV_2_MODE 0
+param set-default SER_TEL3_BAUD 115200
+
+param set-default RC_INPUT_PROTO -1

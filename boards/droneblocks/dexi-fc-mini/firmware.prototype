@@ -1,0 +1,13 @@
+{
+    "board_id": 1242,
+    "magic": "PX4FWv1",
+    "description": "Firmware for the DroneBlocks DEXI-FC-Mini board",
+    "image": "",
+    "build_time": 0,
+    "summary": "DroneBlocksDEXIFCMini",
+    "version": "0.1",
+    "image_size": 0,
+    "image_maxsize": 1835008,
+    "git_identity": "",
+    "board_revision": 0
+}

@@ -1,0 +1,21 @@
+#!/bin/sh
+#
+# DEXI-FC-Mini specific board sensors init
+#------------------------------------------------------------------------------
+
+board_adc start
+
+# Internal SPI1: ICM-45686 (U15), CS PB0, DRDY PB1.
+# U15 sits on the bottom face (B.Cu, KiCad rotation 180). Seen from above, the
+# sensor's +X points left (KiCad -x), +Y points forward (KiCad -y) and
+# +Z points down, so sensor->body is a pure yaw of 270 degrees
+# (ROTATION_YAW_270 = 6). Forward = KiCad -y (the J10 microSD / J4 TEL2 edge);
+# there is no forward arrow on the board yet. See the PR for the derivation.
+icm45686 -s -b 1 -R 6 start
+
+# Internal I2C2: DPS368 (U13). The driver default address is 0x77 (SDO high);
+# fall back to 0x76 in case SDO (PB5, Baro_DRDY) reads low at power-up.
+if ! dps310 -I -b 2 start
+then
+	dps310 -I -b 2 -a 118 start
+fi
